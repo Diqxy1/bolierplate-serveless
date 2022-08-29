@@ -1,0 +1,74 @@
+service: tripee-ride-api
+
+frameworkVersion: '3'
+
+useDotenv: true
+
+plugins:
+  - serverless-offline
+  - serverless-esbuild
+
+custom:
+  esbuild:
+    exclude:
+      - pg-native
+  dotenv:
+    exclude:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+  stagesDomains:
+    stg: stg-
+    dev: dev-
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: us-east-1
+  stage: ${opt:stage}
+  lambdaHashingVersion: 20201221
+  role: arn:aws:iam::197873472104:role/lambda-default
+  tracing:
+    apiGateway: true
+    lambda: true
+  apiGateway:
+    minimumCompressionSize: 1024
+    shouldStartNameWithService: true
+  vpc:
+    securityGroupIds:
+      - sg-02f66f2bbd516e2a1
+    subnetIds:
+      - subnet-011633eb050436e2c
+      - subnet-082a6629442f75572
+  environment:
+    AUTH_SECRET: ${ssm:/${opt:stage}/auth/AUTH_SECRET}
+    PGUSER: ${ssm:/${opt:stage}/db/PGUSER}
+    PGHOST: ${ssm:/${opt:stage}/db/PGHOST}
+    PGPASS: ${ssm:/${opt:stage}/db/PGPASS}
+
+functions:
+  health:
+    handler: src/modules/users/handlers.health
+    timeout: 30
+    memorySize: 2048
+    events:
+      - http:
+          path: /health
+          method: get
+  create:
+    handler: src/modules/users/handlers.create
+    timeout: 30
+    memorySize: 2048
+    events:
+      - http:
+          path: /create
+          method: post
+          request:
+            schemas:
+              application/json: ${file(./src/shared/schemas/createModelSchema.json)}
+  list-user:
+    handler: src/modules/users/handlers.listUsers
+    memorySize: 2048
+    events:
+      - http:
+          path: /list-user
+          method: get
